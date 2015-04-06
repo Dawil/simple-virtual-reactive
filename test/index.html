@@ -1,6 +1,7 @@
 <html>
   <head>
     <script src="../bower_components/virtual-dom/dist/virtual-dom.js"></script>
+    <script src="../lib/simple-framework.js"></script>
     <script>
       'use strict';
       function Person(name,age) {
@@ -12,54 +13,27 @@
       };
       var vd = virtualDom;
 
-      function Emitter() {
-        this.listeners = {};
-      }
-      Emitter.prototype.addEventListener = function(eventType, listener) {
-        if (this.listeners[eventType] === undefined) {
-          this.listeners[eventType] = [];
-        }
-        this.listeners[eventType].push(listener);
-        return this;
-      };
-      Emitter.prototype.removeEventListener = function(eventType, listener) {
-        for (var i = 0; i < this.listeners[eventType].length; i++) {
-          if (this.listeners[eventType][i] === listener) {
-            this.listeners[eventType] = this.listeners[eventType].splice(i, 1);
-          }
-        }
-        return this;
-      };
-      Emitter.prototype.dispatchEvent = function(eventType, event) {
-        for (var i in this.listeners[eventType]) {
-          this.listeners[eventType][i](event);
-        }
-        return this;
-      };
 
-      function Intent() {
-        Emitter.call(this);
+      var Intent = new Emitter(function() {
         this.onInput = function(event) {
           var updateEvent = {};
           updateEvent[event.target.name] = event.target.value;
           this.dispatchEvent('input', updateEvent);
         }.bind(this);
-      }
-      Intent.prototype = Object.create(Emitter.prototype);
+      });
 
-      function Model(state) {
-        Emitter.call(this);
+      var Model = new Emitter(function(state) {
         this.state = state;
-      }
-      Model.prototype = Object.create(Emitter.prototype);
-      Model.prototype.update = function(event) {
-        for (var i in event) {
-          this.state[i] = event[i];
-          if (i === 'age' && event.age < 0)
-            this.state.age = 0;
-        }
-        this.dispatchEvent('update', this.state);
-      };
+        this.input = function(event) {
+          for (var i in event) {
+            this.state[i] = event[i];
+            if (i === 'age' && event.age < 0)
+              this.state.age = 0;
+          }
+          this.dispatchEvent('update', this.state);
+        }.bind(this);
+      }, new Person('dave',24));
+
       function ViewOutput(person) {
         return vd.h('div', [
             vd.h('p', [
@@ -88,48 +62,30 @@
             })
           ]);
       }
-      function View(intent) {
-        Emitter.call(this);
+      var View = new Emitter(function(intent) {
         this.intent = intent;
-      }
-      View.prototype = Object.create(Emitter.prototype);
-      View.prototype.render = function(person) {
-        this.dispatchEvent('render', vd.h('div', [
-          ViewForm(person, this.intent),
-          ViewOutput(person)
-        ]));
-      };
-
-      function Renderer(rootNode) {
-        this.rootNode = rootNode;
-        this.vtree = undefined;
-      }
-      Renderer.prototype.render = function(vtree) {
-        if (this.vtree === undefined) {
-          var element = vd.create(vtree);
-          this.rootNode.appendChild( element );
-          this.rootNode = element;
-          this.vtree = vtree;
-        } else {
-          var diff = vd.diff(this.vtree, vtree);
-          this.rootNode = vd.patch(this.rootNode, diff);
-          requestAnimationFrame(function() {
-            this.vtree = vtree;
-          }.bind(this));
-        }
-      };
-
+        this.update = function(person) {
+          this.dispatchEvent('render', vd.h('div', [
+            ViewForm(person, this.intent),
+            ViewOutput(person)
+          ]));
+        }.bind(this);
+      }, Intent);
 
       document.addEventListener("DOMContentLoaded", function() {
-        var intent = new Intent();
-        var model = new Model(new Person('dave',24));
-        var view = new View(intent);
-        var renderer = new Renderer(document.body);
-        intent.addEventListener('input', model.update.bind(model));
-        model.addEventListener('update', view.render.bind(view));
-        view.addEventListener('render', renderer.render.bind(renderer));
-
-        model.update({});
+        var MyRenderer = new Renderer(document.body);
+        route(
+          Intent, {
+            input: Model
+          },
+          Model, {
+            update: View
+          },
+          View, {
+            render: MyRenderer
+          }
+        );
+        Model.input({});
       });
 
     </script>
