@@ -1,0 +1,15 @@
+{
+  "name": "virtual-dom",
+  "homepage": "https://github.com/Matt-Esch/virtual-dom",
+  "version": "2.0.1",
+  "_release": "2.0.1",
+  "_resolution": {
+    "type": "version",
+    "tag": "v2.0.1",
+    "commit": "462a3efdd101579ddcd0034ab1b11a4b1e729245"
+  },
+  "_source": "git://github.com/Matt-Esch/virtual-dom.git",
+  "_target": "~2.0.1",
+  "_originalSource": "virtual-dom",
+  "_direct": true
+}

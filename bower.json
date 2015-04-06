@@ -1,0 +1,19 @@
+{
+  "name": "reactive-virtual-dom",
+  "version": "0.0.0",
+  "authors": [
+    "David Wilcox <dave@davidgwilcox.com>"
+  ],
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "virtual-dom": "~2.0.1"
+  }
+}
