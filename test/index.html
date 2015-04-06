@@ -2,82 +2,136 @@
   <head>
     <script src="../bower_components/virtual-dom/dist/virtual-dom.js"></script>
     <script>
+      'use strict';
+      function Person(name,age) {
+         this.name = name;
+         this.age = age;
+      }
+      Person.prototype.getDOB = function() {
+        return new Date().getFullYear() - this.age;
+      };
       var vd = virtualDom;
-      var App = {
-        Models: {
-          View: function(update) {
-            var render = false;
-            for (var i in update) {
-              if (App.State.View.p[i] !== update[i]) {
-                render = true;
-                App.State.View.p[i] = update[i];
-              }
-            }
-            if (render) {
-              App.Render(App.State.View.p);
-            }
+
+      function Emitter() {
+        this.listeners = {};
+      }
+      Emitter.prototype.addEventListener = function(eventType, listener) {
+        if (this.listeners[eventType] === undefined) {
+          this.listeners[eventType] = [];
+        }
+        this.listeners[eventType].push(listener);
+        return this;
+      };
+      Emitter.prototype.removeEventListener = function(eventType, listener) {
+        for (var i = 0; i < this.listeners[eventType].length; i++) {
+          if (this.listeners[eventType][i] === listener) {
+            this.listeners[eventType] = this.listeners[eventType].splice(i, 1);
           }
-        },
-        Objects : {
-          Person: function(name, age) {
-           this.name = name;
-           this.age = age;
-          }
-        },
-        Listeners: {
-          onchange: function(event) {
-            var update = {};
-            update[event.target.name] = event.target.value;
-            App.Models.View(update);
-          }
-        },
-        Views: {
-          View: function(person) {
-            return vd.h('div', [
-                vd.h('p', 'Welcome, ' + person.name + ', age ' + person.age + '.')
-              ]);
-          },
-          Form: function(person) {
-            return vd.h('div', [
-                vd.h('h1','Form'),
-                vd.h('label', { for: 'name' }, 'Name'),
-                vd.h('input', {
-                  name: 'name',
-                  onkeyup: App.Listeners.onchange,
-                  value: person.name
-                }),
-                vd.h('label', { for: 'age' }, 'Age'),
-                vd.h('input', {
-                  name: 'age',
-                  onkeyup: App.Listeners.onchange,
-                  value: person.age
-                })
-              ]);
-          },
-          App: function(person) {
-            return vd.h('div', [
-                App.Views.Form(person),
-                App.Views.View(person)
-              ]);
-          }
-        },
-        Render: function() {
-          var newVTree = App.Views.App(App.State.View.p);
-          var diff = vd.diff(App.Vtree, newVTree);
-          App.Root = vd.patch(App.Root, diff);
-          App.Vtree = newVTree;
+        }
+        return this;
+      };
+      Emitter.prototype.dispatchEvent = function(eventType, event) {
+        for (var i in this.listeners[eventType]) {
+          this.listeners[eventType][i](event);
+        }
+        return this;
+      };
+
+      function Intent() {
+        Emitter.call(this);
+        this.onInput = function(event) {
+          var updateEvent = {};
+          updateEvent[event.target.name] = event.target.value;
+          this.dispatchEvent('input', updateEvent);
+        }.bind(this);
+      }
+      Intent.prototype = Object.create(Emitter.prototype);
+
+      function Model(state) {
+        Emitter.call(this);
+        this.state = state;
+      }
+      Model.prototype = Object.create(Emitter.prototype);
+      Model.prototype.update = function(event) {
+        for (var i in event) {
+          this.state[i] = event[i];
+          if (i === 'age' && event.age < 0)
+            this.state.age = 0;
+        }
+        this.dispatchEvent('update', this.state);
+      };
+      function ViewOutput(person) {
+        return vd.h('div', [
+            vd.h('p', [
+              'Welcome, ',
+              vd.h('span', person.name),
+              ', born in ',
+              vd.h('span', person.getDOB() + '.')
+              ])
+          ]);
+      }
+      function ViewForm(person, intent) {
+        return vd.h('div', [
+            vd.h('h1','Form'),
+            vd.h('label', { for: 'name' }, 'Name'),
+            vd.h('input', {
+              name: 'name',
+              oninput: intent.onInput,
+              value: person.name
+            }),
+            vd.h('label', { for: 'age' }, 'Age'),
+            vd.h('input', {
+              name: 'age',
+              type: 'number',
+              oninput: intent.onInput,
+              value: person.age
+            })
+          ]);
+      }
+      function View(intent) {
+        Emitter.call(this);
+        this.intent = intent;
+      }
+      View.prototype = Object.create(Emitter.prototype);
+      View.prototype.render = function(person) {
+        this.dispatchEvent('render', vd.h('div', [
+          ViewForm(person, this.intent),
+          ViewOutput(person)
+        ]));
+      };
+
+      function Renderer(rootNode) {
+        this.rootNode = rootNode;
+        this.vtree = undefined;
+      }
+      Renderer.prototype.render = function(vtree) {
+        if (this.vtree === undefined) {
+          var element = vd.create(vtree);
+          this.rootNode.appendChild( element );
+          this.rootNode = element;
+          this.vtree = vtree;
+        } else {
+          var diff = vd.diff(this.vtree, vtree);
+          this.rootNode = vd.patch(this.rootNode, diff);
+          requestAnimationFrame(function() {
+            this.vtree = vtree;
+          }.bind(this));
         }
       };
-      App.State = {
-        View: {
-          p: new App.Objects.Person('dave',24)
-        }
-      };
-      App.Vtree = App.Views.App(App.State.View.p);
-      App.Root = vd.create(App.Vtree);
+
+
       document.addEventListener("DOMContentLoaded", function() {
-        document.body.appendChild(App.Root);
+        var intent = new Intent();
+        var model = new Model(new Person('dave',24));
+        var view = new View(intent);
+        var renderer = new Renderer(document.body);
+        intent.addEventListener('input', model.update.bind(model));
+        model.addEventListener('update', view.render.bind(view));
+        view.addEventListener('render', renderer.render.bind(renderer));
+
+        model.update({});
       });
+
     </script>
   </head>
   <body>
