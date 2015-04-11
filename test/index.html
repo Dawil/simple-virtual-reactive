@@ -13,97 +13,73 @@
       };
       var vd = virtualDom;
 
-
-      var Intent = new Emitter(function() {
-        this.onInput = function(event) {
-          var updateEvent = {};
-          updateEvent[event.target.name] = event.target.value;
-          this.dispatchEvent('input', updateEvent);
-        }.bind(this);
-      });
-      var IntentClicker = new Emitter(function() {
-        this.onClick = function(event) {
-          this.dispatchEvent('click');
-        }.bind(this);
-      });
-
-      var Model = new Emitter(function(state) {
-        this.state = state;
-        this.input = function(event) {
-          for (var i in event) {
-            this.state[i] = event[i];
-            if (i === 'age' && event.age < 0)
-              this.state.age = 0;
-          }
-          this.dispatchEvent('update', this.state);
-        }.bind(this);
-      }, new Person('dave',24));
-      var ModelClicker = new Emitter(function(state) {
-        this.clicked = state;
-        this.toggle = function() {
-          this.clicked = !this.clicked;
-          this.dispatchEvent('update');
-        }.bind(this);
-      }, false);
-
-      function ViewOutput(person) {
+      function ViewOutput() {
         return vd.h('div', [
             vd.h('p', [
               'Welcome, ',
-              vd.h('span', person.name),
+              vd.h('span', this.p.name),
               ', born in ',
-              vd.h('span', person.getDOB() + '.')
+              vd.h('span', this.p.getDOB() + '.')
               ])
           ]);
       }
-      function ViewForm(person, intent) {
-        return vd.h('div', {
-              oninput: intent.onInput
-            }, [
+      function ViewForm() {
+        return vd.h('div', [
             vd.h('h1','Form'),
             vd.h('label', { for: 'name' }, 'Name'),
             vd.h('input', {
               name: 'name',
-              value: person.name
+              attributes: { 'data-ev-input': 'name' },
+              value: this.p.name
             }),
             vd.h('label', { for: 'age' }, 'Age'),
             vd.h('input', {
               name: 'age',
+              attributes: { 'data-ev-input': 'age' },
               type: 'number',
-              value: person.age
+              value: this.p.age
             })
           ]);
       }
-      var View = new Emitter(function(intent, intentClicker) {
-        this.intent = intent;
-        this.update = function(person) {
-          this.dispatchEvent('render', vd.h('div', [
-            ViewForm(person, this.intent),
-            ViewOutput(person)
-          ]));
-        }.bind(this);
-        //this.updateClicky 
-        /**
-         * Should all the models be merged before meeting the views or should the views find ways to get their models?
-         */
-      }, Intent, IntentClicker);
 
       document.addEventListener("DOMContentLoaded", function() {
-        var MyRenderer = new Renderer(document.body);
-        route(
-          Intent, {
-            input: Model
+        var app = new App({
+          state: {
+            p: new Person('dave',24),
+            toggle: false
           },
-          Model, {
-            update: View
+          // how are the views recruited? For now let's recruit all of them.
+          view: function() {
+            return vd.h('div', [
+                ViewForm.call(this.config.state),
+                ViewOutput.call(this.config.state)
+              ]);
           },
-          View, {
-            render: MyRenderer
+          router: {
+            input: function(e) {
+              if (e.target.dataset.evInput !== undefined) {
+                var updateObj = {
+                  name: e.target.name,
+                  value: e.target.value
+                };
+                this.dispatch('update', updateObj );
+              }
+            },
+            click: function(e) {
+              if (e.target.dataset.evClick !== undefined) {
+                this.dispatch('click', e);
+              }
+            }, 
+          },
+          model: {
+            update: function(updateObj) {
+              this.config.state.p[updateObj.name] = updateObj.value;
+              if (updateObj.name === 'age' && updateObj.value < 0)
+                this.config.state.p.age = 0;
+            }
           }
-        );
-        Model.input({}); // ugly
+        }).run(document.body);
       });
-
     </script>
   </head>
   <body>
