@@ -21,6 +21,11 @@
           this.dispatchEvent('input', updateEvent);
         }.bind(this);
       });
+      var IntentClicker = new Emitter(function() {
+        this.onClick = function(event) {
+          this.dispatchEvent('click');
+        }.bind(this);
+      });
 
       var Model = new Emitter(function(state) {
         this.state = state;
@@ -33,6 +38,13 @@
           this.dispatchEvent('update', this.state);
         }.bind(this);
       }, new Person('dave',24));
+      var ModelClicker = new Emitter(function(state) {
+        this.clicked = state;
+        this.toggle = function() {
+          this.clicked = !this.clicked;
+          this.dispatchEvent('update');
+        }.bind(this);
+      }, false);
 
       function ViewOutput(person) {
         return vd.h('div', [
@@ -45,24 +57,24 @@
           ]);
       }
       function ViewForm(person, intent) {
-        return vd.h('div', [
+        return vd.h('div', {
+              oninput: intent.onInput
+            }, [
             vd.h('h1','Form'),
             vd.h('label', { for: 'name' }, 'Name'),
             vd.h('input', {
               name: 'name',
-              oninput: intent.onInput,
               value: person.name
             }),
             vd.h('label', { for: 'age' }, 'Age'),
             vd.h('input', {
               name: 'age',
               type: 'number',
-              oninput: intent.onInput,
               value: person.age
             })
           ]);
       }
-      var View = new Emitter(function(intent) {
+      var View = new Emitter(function(intent, intentClicker) {
         this.intent = intent;
         this.update = function(person) {
           this.dispatchEvent('render', vd.h('div', [
@@ -70,7 +82,11 @@
             ViewOutput(person)
           ]));
         }.bind(this);
-      }, Intent);
+        //this.updateClicky 
+        /**
+         * Should all the models be merged before meeting the views or should the views find ways to get their models?
+         */
+      }, Intent, IntentClicker);
 
       document.addEventListener("DOMContentLoaded", function() {
         var MyRenderer = new Renderer(document.body);
@@ -85,7 +101,7 @@
             render: MyRenderer
           }
         );
-        Model.input({});
+        Model.input({}); // ugly
       });
 
     </script>
