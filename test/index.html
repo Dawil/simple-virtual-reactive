@@ -1,5 +1,13 @@
 <html>
   <head>
+    <style>
+      .toggle-on {
+        color: red;
+      }
+      .toggle-off {
+        color: purple;
+      }
+    </style>
     <script src="../bower_components/virtual-dom/dist/virtual-dom.js"></script>
     <script src="../lib/simple-framework.js"></script>
     <script>
@@ -15,11 +23,25 @@
 
       function ViewOutput() {
         return vd.h('div', [
-            vd.h('p', [
+            vd.h('p', {
+                attributes: {
+                  class: 'toggle-' + (this.toggle ? 'on' : 'off')
+                }
+              }, [
               'Welcome, ',
               vd.h('span', this.p.name),
               ', born in ',
-              vd.h('span', this.p.getDOB() + '.')
+              vd.h('span', this.p.getDOB() + '.'),
+              vd.h('button', {
+                disabled: !this.toggletoggle,
+                attributes: { 'data-ev-click': 'colour' }
+              }, 'Toggle colour'),
+              vd.h('button', {
+                attributes: { 'data-ev-click': 'toggle' }
+              }, 'Toggle toggle'),
+              vd.h('button', {
+                attributes: { 'data-ev-click': 'save' }
+              }, 'Save state')
               ])
           ]);
       }
@@ -43,11 +65,22 @@
       }
 
       document.addEventListener("DOMContentLoaded", function() {
+        var state = function initState() {
+          var localState;
+          if (!!window.localStorage.state) {
+            localState = JSON.parse(window.localStorage.state);
+            localState.p = new Person(localState.p.name, localState.p.age);
+          } else {
+            localState = {
+              p: new Person('dave',24),
+              toggle: false,
+              toggletoggle: true
+            };
+          }
+          return localState;
+        }();
         var app = new App({
-          state: {
-            p: new Person('dave',24),
-            toggle: false
-          },
+          state: state,
           // how are the views recruited? For now let's recruit all of them.
           view: function() {
             return vd.h('div', [
@@ -66,8 +99,14 @@
               }
             },
             click: function(e) {
-              if (e.target.dataset.evClick !== undefined) {
-                this.dispatch('click', e);
+              var evClick = e.target.dataset.evClick;
+              if (evClick !== undefined) {
+                if (evClick === 'colour')
+                  this.dispatch('click');
+                else if (evClick === 'toggle')
+                  this.dispatch('toggleClick');
+                else if (evClick === 'save')
+                  this.dispatch('save');
               }
             }, 
           },
@@ -76,6 +115,22 @@
               this.config.state.p[updateObj.name] = updateObj.value;
               if (updateObj.name === 'age' && updateObj.value < 0)
                 this.config.state.p.age = 0;
+            },
+            click: function() {
+              this.config.state.toggle = !this.config.state.toggle;
+            },
+            toggleClick: function() {
+              this.config.state.toggletoggle = !this.config.state.toggletoggle;
+            },
+            save: function() {
+              var localState = this.config.state;
+              var p = localState.p;
+              localState.p = {
+                name: p.name,
+                age: p.age
+              };
+              window.localStorage.state = JSON.stringify(localState);
+              localState.p = p;
             }
           }
         }).run(document.body);

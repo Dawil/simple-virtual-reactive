@@ -25,3 +25,8 @@ Optional Virtual Dom
 ====================
 
 Making virtual-dom an optional dependency sounds like a great idea because then people can choose load times versus performance. Assigning innerHTML would be a viable alternative (Bloop framework).
+
+Encapsulation
+=============
+
+My current belief is that encapsulation should occur via shadow DOM. I can thus turn the app into a custom element with a shadow root and emit events as my api.
